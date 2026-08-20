@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simple TTS Studio</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="container">
+    <section class="card">
+      <h1>🎙️ Simple TTS Studio</h1>
+      <p class="sub">Deep, calm Hindi narration for documentary-style voiceovers.</p>
+
+      <label for="text">Your text</label>
+      <textarea id="text" maxlength="5000"
+        placeholder="Type or paste your script here..."></textarea>
+      <div class="counter"><span id="count">0</span>/5000</div>
+
+      <div class="row">
+        <div>
+          <label for="voice">Voice</label>
+          <select id="voice">
+            {% for name, value in voices.items() %}
+              <option value="{{ name }}"{% if name.startswith("Hindi - Male") %} selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label for="speed">Speed</label>
+          <select id="speed">
+            <option value="-15%">0.85× — Slow</option>
+            <option value="-10%">0.90× — Calm</option>
+            <option value="-8%" selected>0.92× — Documentary</option>
+            <option value="-5%">0.95× — Natural</option>
+            <option value="+0%">1.00× — Normal</option>
+          </select>
+        </div>
+      </div>
+
+      <button id="generate">Generate Voice</button>
+      <p id="status"></p>
+
+      <div id="playerBox" class="player hidden">
+        <audio id="audio" controls></audio>
+        <a id="download" class="download" href="#">⬇ Download MP3</a>
+      </div>
+    </section>
+  </main>
+
+<script>
+const text = document.getElementById("text");
+const count = document.getElementById("count");
+const status = document.getElementById("status");
+const generate = document.getElementById("generate");
+const playerBox = document.getElementById("playerBox");
+const audio = document.getElementById("audio");
+const download = document.getElementById("download");
+
+text.addEventListener("input", () => count.textContent = text.value.length);
+
+generate.addEventListener("click", async () => {
+  const value = text.value.trim();
+  if (!value) {
+    status.textContent = "Please enter some text.";
+    return;
+  }
+
+  generate.disabled = true;
+  generate.textContent = "Generating...";
+  status.textContent = "Please wait...";
+  playerBox.classList.add("hidden");
+
+  try {
+    const response = await fetch("/api/synthesize", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        text: value,
+        voice: document.getElementById("voice").value,
+        rate: document.getElementById("speed").value
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Something went wrong.");
+
+    audio.src = data.audio_url;
+    download.href = data.download_url;
+    playerBox.classList.remove("hidden");
+    status.textContent = "Voice generated successfully.";
+  } catch (err) {
+    status.textContent = "Error: " + err.message;
+  } finally {
+    generate.disabled = false;
+    generate.textContent = "Generate Voice";
+  }
+});
+</script>
+</body>
+</html>
